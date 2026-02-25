@@ -1,88 +1,98 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 
+// API 配置 - 部署后更新这个地址
+const API_BASE = 'https://singles-dating-api.YOUR_SUBDOMAIN.workers.dev/api'
+// 本地开发时可以用：const API_BASE = 'http://localhost:8787/api'
+
 // 状态
 const events = ref([])
 const currentView = ref('list') // list, create, detail
 const currentEvent = ref(null)
 const filterDistance = ref(5) // km
+const loading = ref(false)
+const error = ref(null)
 
-// 从 localStorage 加载
-const loadData = () => {
-  const saved = localStorage.getItem('singles-events')
-  if (saved) {
-    events.value = JSON.parse(saved)
-  } else {
-    events.value = [
-      {
-        id: 1,
-        title: '周末火锅局',
-        description: '想吃火锅了，找几个搭子一起拼桌',
-        location: '海底捞(中关村店)',
-        distance: 1.2,
-        time: '周六 18:00',
-        maxPeople: 6,
-        currentPeople: 3,
-        host: '吃货小王',
-        hostAvatar: '👨',
-        questions: [
-          { q: '你的吃饭预算是多少？', options: ['50-100', '100-200', '200+'], answers: ['100-200', '100-200', '50-100'] },
-          { q: '能接受辣吗？', options: ['不辣', '微辣', '中辣', '特辣'], answers: ['微辣', '中辣', '不辣'] },
-          { q: '喜欢吃什么？', options: ['肉食动物', '素食主义', '海鲜控', '都行'], answers: ['肉食动物', '海鲜控', '都行'] }
-        ],
-        status: 'open',
-        createTime: Date.now() - 3600000
-      },
-      {
-        id: 2,
-        title: '工作日午餐搭子',
-        description: '国贸附近上班，找个饭搭子',
-        location: '国贸商城',
-        distance: 0.8,
-        time: '工作日 12:00',
-        maxPeople: 4,
-        currentPeople: 2,
-        host: '上班族小李',
-        hostAvatar: '👩',
-        questions: [
-          { q: '午餐预算？', options: ['20-30', '30-50', '50+'], answers: ['30-50', '30-50'] },
-          { q: '用餐时长？', options: ['30分钟', '1小时', '1.5小时'], answers: ['1小时', '30分钟'] },
-          { q: '偏吃什么？', options: ['中式', '西式', '日韩', '随便'], answers: ['中式', '随便'] }
-        ],
-        status: 'open',
-        createTime: Date.now() - 7200000
-      },
-      {
-        id: 3,
-        title: '烤肉局凑人',
-        description: '还差2个人，周日晚上的烤肉',
-        location: '汉拿山(西单店)',
-        distance: 3.5,
-        time: '周日 19:00',
-        maxPeople: 8,
-        currentPeople: 6,
-        host: '烤肉达人',
-        hostAvatar: '🧑',
-        questions: [
-          { q: '能喝酒吗？', options: ['不喝', '少量', '能喝'], answers: ['少量', '能喝', '不喝', '少量', '能喝', '少量'] },
-          { q: '人均预算？', options: ['80-120', '120-200', '200+'], answers: ['120-200', '120-200', '80-120', '120-200', '200+', '120-200'] },
-          { q: '有没有忌口？', options: ['没有', '海鲜过敏', '不吃羊肉', '其他'], answers: ['没有', '没有', '海鲜过敏', '没有', '没有', '没有'] }
-        ],
-        status: 'open',
-        createTime: Date.now() - 1800000
+// 从飞书 API 加载
+const loadData = async () => {
+  loading.value = true
+  error.value = null
+
+  try {
+    const res = await fetch(`${API_BASE}/events`)
+    const data = await res.json()
+
+    if (data.events) {
+      events.value = data.events
+    } else {
+      // 如果 API 不可用，使用 localStorage 作为降级方案
+      const saved = localStorage.getItem('singles-events')
+      if (saved) {
+        events.value = JSON.parse(saved)
+      } else {
+        // 示例数据
+        events.value = getDemoData()
       }
-    ]
-    saveData()
+    }
+  } catch (e) {
+    console.error('API 加载失败，使用本地数据:', e)
+    // 降级到 localStorage
+    const saved = localStorage.getItem('singles-events')
+    if (saved) {
+      events.value = JSON.parse(saved)
+    } else {
+      events.value = getDemoData()
+    }
+  } finally {
+    loading.value = false
   }
 }
 
-const saveData = () => {
-  localStorage.setItem('singles-events', JSON.stringify(events.value))
-}
+// 示例数据
+const getDemoData = () => [
+  {
+    id: 'demo1',
+    title: '周末火锅局',
+    description: '想吃火锅了，找几个搭子一起拼桌',
+    location: '海底捞(中关村店)',
+    distance: 1.2,
+    time: '周六 18:00',
+    maxPeople: 6,
+    currentPeople: 3,
+    host: '吃货小王',
+    hostAvatar: '👨',
+    questions: [
+      { q: '你的吃饭预算是多少？', options: ['50-100', '100-200', '200+'], answers: ['100-200', '100-200', '50-100'] },
+      { q: '能接受辣吗？', options: ['不辣', '微辣', '中辣', '特辣'], answers: ['微辣', '中辣', '不辣'] },
+      { q: '喜欢吃什么？', options: ['肉食动物', '素食主义', '海鲜控', '都行'], answers: ['肉食动物', '海鲜控', '都行'] }
+    ],
+    status: '招募中',
+    createTime: Date.now() - 3600000
+  },
+  {
+    id: 'demo2',
+    title: '工作日午餐搭子',
+    description: '国贸附近上班，找个饭搭子',
+    location: '国贸商城',
+    distance: 0.8,
+    time: '工作日 12:00',
+    maxPeople: 4,
+    currentPeople: 2,
+    host: '上班族小李',
+    hostAvatar: '👩',
+    questions: [
+      { q: '午餐预算？', options: ['20-30', '30-50', '50+'], answers: ['30-50', '30-50'] },
+      { q: '用餐时长？', options: ['30分钟', '1小时', '1.5小时'], answers: ['1小时', '30分钟'] },
+      { q: '偏吃什么？', options: ['中式', '西式', '日韩', '随便'], answers: ['中式', '随便'] }
+    ],
+    status: '招募中',
+    createTime: Date.now() - 7200000
+  }
+]
 
 // 过滤活动
 const filteredEvents = computed(() => {
-  return events.value.filter(e => e.distance <= filterDistance.value && e.status === 'open')
+  return events.value.filter(e => e.distance <= filterDistance.value && (e.status === '招募中' || e.status === 'open'))
 })
 
 // 新活动表单
@@ -101,11 +111,10 @@ const newEvent = ref({
 })
 
 // 提交新活动
-const submitEvent = () => {
+const submitEvent = async () => {
   if (!newEvent.value.title.trim()) return
 
   const event = {
-    id: Date.now(),
     title: newEvent.value.title,
     description: newEvent.value.description,
     location: newEvent.value.location,
@@ -120,12 +129,33 @@ const submitEvent = () => {
       options: q.options.split(',').map(o => o.trim()),
       answers: []
     })),
-    status: 'open',
+    status: '招募中',
     createTime: Date.now()
   }
 
-  events.value.unshift(event)
-  saveData()
+  try {
+    const res = await fetch(`${API_BASE}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(event)
+    })
+    
+    if (res.ok) {
+      // 重新加载数据
+      await loadData()
+    } else {
+      // 降级：直接添加到本地
+      event.id = Date.now().toString()
+      events.value.unshift(event)
+      localStorage.setItem('singles-events', JSON.stringify(events.value))
+    }
+  } catch (e) {
+    console.error('创建失败，使用本地存储:', e)
+    event.id = Date.now().toString()
+    events.value.unshift(event)
+    localStorage.setItem('singles-events', JSON.stringify(events.value))
+  }
+
   currentView.value = 'list'
 }
 
@@ -133,19 +163,48 @@ const submitEvent = () => {
 const joinAnswers = ref([])
 
 // 参与活动
-const joinEvent = () => {
+const joinEvent = async () => {
   if (!currentEvent.value) return
 
-  currentEvent.value.currentPeople++
-  currentEvent.value.questions.forEach((q, i) => {
-    q.answers.push(joinAnswers.value[i] || '')
-  })
-
-  if (currentEvent.value.currentPeople >= currentEvent.value.maxPeople) {
-    currentEvent.value.status = 'full'
+  const updatedEvent = {
+    currentPeople: currentEvent.value.currentPeople + 1,
+    questions: currentEvent.value.questions.map((q, i) => ({
+      ...q,
+      answers: [...q.answers, joinAnswers.value[i] || '']
+    })),
+    status: currentEvent.value.currentPeople + 1 >= currentEvent.value.maxPeople ? '已满员' : '招募中'
   }
 
-  saveData()
+  try {
+    const res = await fetch(`${API_BASE}/events/${currentEvent.value.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fields: {
+          '当前人数': updatedEvent.currentPeople,
+          '筛选问题': JSON.stringify(updatedEvent.questions),
+          '状态': updatedEvent.status
+        }
+      })
+    })
+
+    if (res.ok) {
+      await loadData()
+    } else {
+      // 降级：更新本地
+      currentEvent.value.currentPeople = updatedEvent.currentPeople
+      currentEvent.value.questions = updatedEvent.questions
+      currentEvent.value.status = updatedEvent.status
+      localStorage.setItem('singles-events', JSON.stringify(events.value))
+    }
+  } catch (e) {
+    console.error('更新失败，使用本地存储:', e)
+    currentEvent.value.currentPeople = updatedEvent.currentPeople
+    currentEvent.value.questions = updatedEvent.questions
+    currentEvent.value.status = updatedEvent.status
+    localStorage.setItem('singles-events', JSON.stringify(events.value))
+  }
+
   joinAnswers.value = []
   currentView.value = 'list'
 }
@@ -188,8 +247,14 @@ onMounted(loadData)
 
     <!-- 列表页 -->
     <div v-if="currentView === 'list'" class="max-w-lg mx-auto px-4 py-4">
+      <!-- 加载状态 -->
+      <div v-if="loading" class="text-center py-12">
+        <div class="text-4xl mb-3">⏳</div>
+        <p class="text-gray-400">加载中...</p>
+      </div>
+
       <!-- 距离筛选 -->
-      <div class="bg-white rounded-xl p-4 mb-4 shadow-sm">
+      <div v-if="!loading" class="bg-white rounded-xl p-4 mb-4 shadow-sm">
         <div class="flex items-center justify-between mb-2">
           <span class="text-sm text-gray-600">附近 {{ filterDistance }} 公里</span>
           <span class="text-xs text-gray-400">{{ filteredEvents.length }} 个饭局</span>
@@ -391,10 +456,10 @@ onMounted(loadData)
         <div class="flex items-center justify-between mb-2">
           <h2 class="text-lg font-bold">{{ currentEvent.title }}</h2>
           <span
-            :class="currentEvent.status === 'open' ? 'bg-green-50 text-green-500' : 'bg-gray-50 text-gray-400'"
+            :class="(currentEvent.status === '招募中' || currentEvent.status === 'open') ? 'bg-green-50 text-green-500' : 'bg-gray-50 text-gray-400'"
             class="text-xs px-2 py-1 rounded-full"
           >
-            {{ currentEvent.status === 'open' ? '招募中' : '已满员' }}
+            {{ currentEvent.status === 'open' ? '招募中' : currentEvent.status === 'full' ? '已满员' : currentEvent.status }}
           </span>
         </div>
         <p class="text-gray-600 text-sm mb-3">{{ currentEvent.description }}</p>
@@ -434,7 +499,7 @@ onMounted(loadData)
       </div>
 
       <!-- 参与表单 -->
-      <div v-if="currentEvent.status === 'open'" class="bg-white rounded-xl p-4 shadow-sm">
+      <div v-if="currentEvent.status === '招募中' || currentEvent.status === 'open'" class="bg-white rounded-xl p-4 shadow-sm">
         <h3 class="font-medium mb-3">回答问题参与饭局</h3>
         <div class="space-y-3">
           <div v-for="(q, i) in currentEvent.questions" :key="i">
