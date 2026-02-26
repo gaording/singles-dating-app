@@ -1,11 +1,11 @@
-// Vercel Serverless Function
-// 文件路径: api/events.js
+// 阿里云函数计算 - 飞书 API 代理
 
 const FEISHU_BASE = 'https://open.feishu.cn/open-apis';
 
 const CONFIG = {
   app_token: 'MeFpb7f06aCCiMsaadNcReLUnvu',
   table_id: 'tblfl9NLAf6iJtKw',
+  // 从环境变量读取
   app_id: process.env.FEISHU_APP_ID,
   app_secret: process.env.FEISHU_APP_SECRET
 };
@@ -28,26 +28,33 @@ async function getAccessToken() {
   });
   const data = await res.json();
   cachedToken = data.tenant_access_token;
-  tokenExpiry = Date.now() + 7000 * 1000; // 约2小时
+  tokenExpiry = Date.now() + 7000 * 1000;
   return cachedToken;
 }
 
-export default async function handler(req, res) {
+// 阿里云函数计算入口
+exports.handler = async (req, resp, context) => {
+  const logger = context.logger;
+
   // CORS
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  resp.setHeader('Access-Control-Allow-Origin', '*');
+  resp.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  resp.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+    resp.send('');
+    return;
   }
 
   const token = await getAccessToken();
   const { app_token, table_id } = CONFIG;
 
   try {
-    // GET - 获取列表
-    if (req.method === 'GET') {
+    const path = req.path.replace('/api', '');
+    const method = req.method;
+
+    // GET /events - 获取列表
+    if (path === '/events' && method === 'GET') {
       const response = await fetch(
         `${FEISHU_BASE}/bitable/v1/apps/${app_token}/tables/${table_id}/records`,
         { headers: { 'Authorization': `Bearer ${token}` } }
@@ -70,12 +77,14 @@ export default async function handler(req, res) {
         createTime: item.fields['创建时间'] || Date.now()
       }));
 
-      return res.status(200).json({ events });
+      resp.setHeader('Content-Type', 'application/json');
+      resp.send(JSON.stringify({ events }));
+      return;
     }
 
-    // POST - 创建饭局
-    if (req.method === 'POST') {
-      const body = req.body;
+    // POST /events - 创建饭局
+    if (path === '/events' && method === 'POST') {
+      const body = JSON.parse(req.body.toString());
 
       const response = await fetch(
         `${FEISHU_BASE}/bitable/v1/apps/${app_token}/tables/${table_id}/records`,
@@ -107,16 +116,19 @@ export default async function handler(req, res) {
       );
 
       const data = await response.json();
-      return res.status(200).json(data);
+      resp.setHeader('Content-Type', 'application/json');
+      resp.send(JSON.stringify(data));
+      return;
     }
 
-    // PUT - 更新饭局
-    if (req.method === 'PUT') {
-      const { id } = req.query;
-      const body = req.body;
+    // PUT /events/:id - 更新饭局
+    const match = path.match(/^\/events\/([^/]+)$/);
+    if (match && method === 'PUT') {
+      const recordId = match[1];
+      const body = JSON.parse(req.body.toString());
 
       const response = await fetch(
-        `${FEISHU_BASE}/bitable/v1/apps/${app_token}/tables/${table_id}/records/${id}`,
+        `${FEISHU_BASE}/bitable/v1/apps/${app_token}/tables/${table_id}/records/${recordId}`,
         {
           method: 'PUT',
           headers: {
@@ -128,12 +140,19 @@ export default async function handler(req, res) {
       );
 
       const data = await response.json();
-      return res.status(200).json(data);
+      resp.setHeader('Content-Type', 'application/json');
+      resp.send(JSON.stringify(data));
+      return;
     }
 
-    return res.status(404).json({ error: 'Not found' });
+    resp.setStatusCode(404);
+    resp.setHeader('Content-Type', 'application/json');
+    resp.send(JSON.stringify({ error: 'Not found' }));
 
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    logger.error('API Error:', error);
+    resp.setStatusCode(500);
+    resp.setHeader('Content-Type', 'application/json');
+    resp.send(JSON.stringify({ error: error.message }));
   }
-}
+};

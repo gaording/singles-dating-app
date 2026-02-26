@@ -1,0 +1,65 @@
+edition: 3.0.0
+name: singles-dating-app
+access: default
+
+vars:
+  region: cn-hangzhou
+
+resources:
+  # 前端静态网站 - OSS
+  frontend:
+    component: oss
+    props:
+      region: ${vars.region}
+      bucket: singles-dating-app-${env.ALIYUN_ACCOUNT_ID}
+      codeUri: ./dist
+      website:
+        index: index.html
+        error: 404.html
+      cors:
+        - allowedOrigin: ['*']
+          allowedMethod: ['GET', 'HEAD']
+          allowedHeader: ['*']
+
+  # API - 函数计算
+  api:
+    component: fc3
+    props:
+      region: ${vars.region}
+      functionName: singles-dating-api
+      description: 单身搭子饭局 API
+      runtime: nodejs20
+      code: ./api-fc
+      handler: index.handler
+      memorySize: 256
+      timeout: 30
+      environmentVariables:
+        FEISHU_APP_ID: ${env.FEISHU_APP_ID}
+        FEISHU_APP_SECRET: ${env.FEISHU_APP_SECRET}
+      triggers:
+        - name: httpTrigger
+          type: http
+          config:
+            authType: anonymous
+            methods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+
+  # API 域名配置
+  api-domain:
+    component: fc3-domain
+    props:
+      region: ${vars.region}
+      domainName: ${env.API_DOMAIN}
+      protocol: HTTP,HTTPS
+      certConfig:
+        certName: singles-dating
+        certificate: ${env.SSL_CERT}
+        privateKey: ${env.SSL_KEY}
+      routeConfig:
+        routes:
+          - path: /api
+            functionName: singles-dating-api
