@@ -6,53 +6,38 @@
 
 - 前端：Vue 3 + Vite + Tailwind CSS
 - 后端：飞书多维表格
-- API 代理：Cloudflare Workers
+- 部署：阿里云（OSS + 函数计算）
 
-## 本地开发
+## 快速开始
 
 ```bash
 # 安装依赖
 npm install
 
-# 启动前端
+# 本地开发
 npm run dev
 
-# 启动 API 代理（需要先配置 wrangler）
-npm run api
-```
-
-## 部署
-
-### 1. 部署前端（GitHub Pages）
-
-```bash
+# 构建
 npm run build
-# 推送到 GitHub，自动部署
 ```
 
-### 2. 部署 API 代理（Cloudflare Workers）
+## 部署到阿里云
+
+详见 [DEPLOY-ALIYUN.md](./DEPLOY-ALIYUN.md)
 
 ```bash
-# 安装 wrangler
-npm install -g wrangler
+# 安装 Serverless Devs
+npm install -g @serverless-devs/s
 
-# 登录 Cloudflare
-wrangler login
+# 配置阿里云密钥
+s config add
 
-# 设置飞书密钥
-wrangler secret put FEISHU_APP_ID
-wrangler secret put FEISHU_APP_SECRET
+# 设置飞书凭证
+export FEISHU_APP_ID="你的AppID"
+export FEISHU_APP_SECRET="你的AppSecret"
 
-# 部署
-wrangler deploy
-```
-
-### 3. 更新前端 API 地址
-
-部署完 Workers 后，更新 `src/App.vue` 中的 `API_BASE`：
-
-```javascript
-const API_BASE = 'https://singles-dating-api.YOUR_SUBDOMAIN.workers.dev/api';
+# 一键部署
+s deploy
 ```
 
 ## 飞书配置
@@ -63,22 +48,18 @@ const API_BASE = 'https://singles-dating-api.YOUR_SUBDOMAIN.workers.dev/api';
 - `bitable:app:readonly` - 读取多维表格
 - `drive:drive` - 访问云空间
 
-### 多维表格结构
+### 环境变量
 
-| 字段名 | 类型 | 说明 |
-|--------|------|------|
-| 饭局名称 | 文本 | - |
-| 描述 | 文本 | - |
-| 地点 | 文本 | - |
-| 距离 | 数字 | 公里 |
-| 时间 | 文本 | - |
-| 最大人数 | 数字 | - |
-| 当前人数 | 数字 | - |
-| 发起人 | 文本 | - |
-| 发起人头像 | 文本 | emoji |
-| 筛选问题 | 文本 | JSON |
-| 状态 | 单选 | 招募中/已满员/已结束 |
-| 创建时间 | 日期 | - |
+| 变量名 | 说明 |
+|--------|------|
+| `FEISHU_APP_ID` | 飞书应用 App ID |
+| `FEISHU_APP_SECRET` | 飞书应用 App Secret |
+
+## 费用
+
+- OSS 静态网站：~¥0.5/月
+- 函数计算：免费额度内
+- **总计：约 ¥0.5 - 5/月**
 
 ## License
 
