@@ -1,9 +1,14 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 
-// API 配置 - 部署后更新这个地址
-const API_BASE = 'https://singles-dating-api.YOUR_SUBDOMAIN.workers.dev/api'
-// 本地开发时可以用：const API_BASE = 'http://localhost:8787/api'
+// API 配置
+// 本地开发：http://localhost:5173/api/events
+// Vercel 部署后：https://你的域名/api/events
+// Cloudflare Workers：https://singles-dating-api.xxx.workers.dev/api/events
+
+const API_BASE = '/api' // Vercel 自动代理
+// 如果用 Cloudflare Workers，改成：
+// const API_BASE = 'https://singles-dating-api.YOUR_SUBDOMAIN.workers.dev/api'
 
 // 状态
 const events = ref([])
