@@ -3,12 +3,12 @@
 
 const FEISHU_BASE = 'https://open.feishu.cn/open-apis';
 
-// 配置 - 部署时填入
+// 配置 - 部署时填入环境变量
 const CONFIG = {
   app_token: 'MeFpb7f06aCCiMsaadNcReLUnvu',
   table_id: 'tblfl9NLAf6iJtKw',
-  app_id: process.env.FEISHU_APP_ID || 'YOUR_APP_ID',
-  app_secret: process.env.FEISHU_APP_SECRET || 'YOUR_APP_SECRET'
+  app_id: env.FEISHU_APP_ID,
+  app_secret: env.FEISHU_APP_SECRET
 };
 
 // 获取 access_token

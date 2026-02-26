@@ -6,8 +6,8 @@ const FEISHU_BASE = 'https://open.feishu.cn/open-apis';
 const CONFIG = {
   app_token: 'MeFpb7f06aCCiMsaadNcReLUnvu',
   table_id: 'tblfl9NLAf6iJtKw',
-  app_id: 'cli_a917c4e3ae389bb3',
-  app_secret: 'mswUEwqg0gWEXzDYRzko3eWXVDtjxrto'
+  app_id: process.env.FEISHU_APP_ID,
+  app_secret: process.env.FEISHU_APP_SECRET
 };
 
 let cachedToken = null;
