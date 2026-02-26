@@ -2,13 +2,12 @@
 import { ref, computed, onMounted } from 'vue'
 
 // API 配置
-// 本地开发：http://localhost:5173/api/events
-// Vercel 部署后：https://你的域名/api/events
-// Cloudflare Workers：https://singles-dating-api.xxx.workers.dev/api/events
+// 部署后替换为你的函数计算 HTTP 触发器地址
+// 本地调试：s api local 会启动 http://localhost:9000
 
-const API_BASE = '/api' // Vercel 自动代理
-// 如果用 Cloudflare Workers，改成：
-// const API_BASE = 'https://singles-dating-api.YOUR_SUBDOMAIN.workers.dev/api'
+const API_BASE = '/api' // 默认相对路径，需要配置 OSS 跨域或自定义域名
+// 部署后改成：
+// const API_BASE = 'https://你的函数计算域名/api'
 
 // 状态
 const events = ref([])
