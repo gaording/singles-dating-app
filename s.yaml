@@ -11,11 +11,11 @@ resources:
     component: oss
     props:
       region: ${vars.region}
-      bucket: singles-dating-app-${env.ALIYUN_ACCOUNT_ID}
+      bucket: singles-dating-app-prod
       codeUri: ./dist
       website:
         index: index.html
-        error: 404.html
+        error: index.html
       cors:
         - allowedOrigin: ['*']
           allowedMethod: ['GET', 'HEAD']
@@ -34,12 +34,12 @@ resources:
       memorySize: 256
       timeout: 30
       environmentVariables:
-        FEISHU_APP_ID: ${env.FEISHU_APP_ID}
-        FEISHU_APP_SECRET: ${env.FEISHU_APP_SECRET}
+        FEISHU_APP_ID: cli_a917c4e3ae389bb3
+        FEISHU_APP_SECRET: mswUEwqg0gWEXzDYRzko3eWXVDtjxrto
       triggers:
-        - name: httpTrigger
-          type: http
-          config:
+        - triggerName: httpTrigger
+          triggerType: http
+          triggerConfig:
             authType: anonymous
             methods:
               - GET
@@ -47,19 +47,3 @@ resources:
               - PUT
               - DELETE
               - OPTIONS
-
-  # API 域名配置
-  api-domain:
-    component: fc3-domain
-    props:
-      region: ${vars.region}
-      domainName: ${env.API_DOMAIN}
-      protocol: HTTP,HTTPS
-      certConfig:
-        certName: singles-dating
-        certificate: ${env.SSL_CERT}
-        privateKey: ${env.SSL_KEY}
-      routeConfig:
-        routes:
-          - path: /api
-            functionName: singles-dating-api

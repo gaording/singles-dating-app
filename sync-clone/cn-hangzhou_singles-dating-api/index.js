@@ -1,4 +1,4 @@
-// FC3 HTTP 函数 - 单身搭子 API
+// 阿里云函数计算 FC3 - 飞书 API 代理
 
 const FEISHU_BASE = 'https://open.feishu.cn/open-apis';
 
@@ -31,33 +31,37 @@ async function getAccessToken() {
   return cachedToken;
 }
 
-function parseEvent(request) {
-  // FC3 HTTP 触发器事件格式
-  const buf = Buffer.isBuffer(request) ? request : Buffer.from(request);
-  return JSON.parse(buf.toString());
-}
+// FC3 HTTP 函数签名
+exports.handler = async (req, resp, context) => {
+  const logger = context.logger;
 
-exports.handler = async (request) => {
-  const event = parseEvent(request);
-  const path = event.rawPath || event.requestContext?.http?.path || '/';
-  const method = event.requestContext?.http?.method || 'GET';
+  // CORS
+  resp.setHeader('Access-Control-Allow-Origin', '*');
+  resp.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  resp.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-  // OPTIONS
-  if (method === 'OPTIONS') {
-    return JSON.stringify({});
+  // 处理 OPTIONS 预检请求
+  if (req.method === 'OPTIONS') {
+    resp.setStatusCode(204);
+    resp.send('');
+    return;
   }
 
-  try {
-    const token = await getAccessToken();
-    const { app_token, table_id } = CONFIG;
+  const token = await getAccessToken();
+  const { app_token, table_id } = CONFIG;
 
-    // GET /events
-    if (path === '/events' && method === 'GET') {
-      const feishuRes = await fetch(
+  try {
+    const path = req.path || req.url.split('?')[0];
+    const method = req.method;
+    const body = req.body ? JSON.parse(req.body) : {};
+
+    // GET /events - 获取列表
+    if (path.includes('/events') && method === 'GET') {
+      const response = await fetch(
         `${FEISHU_BASE}/bitable/v1/apps/${app_token}/tables/${table_id}/records`,
         { headers: { 'Authorization': `Bearer ${token}` } }
       );
-      const data = await feishuRes.json();
+      const data = await response.json();
 
       const events = (data.data?.items || []).map(item => ({
         id: item.record_id,
@@ -75,20 +79,14 @@ exports.handler = async (request) => {
         createTime: item.fields['创建时间'] || Date.now()
       }));
 
-      return JSON.stringify({ events });
+      resp.setHeader('Content-Type', 'application/json');
+      resp.send(JSON.stringify({ events }));
+      return;
     }
 
-    // POST /events
-    if (path === '/events' && method === 'POST') {
-      let body = {};
-      if (event.body) {
-        const bodyStr = event.isBase64Encoded 
-          ? Buffer.from(event.body, 'base64').toString() 
-          : event.body;
-        body = JSON.parse(bodyStr);
-      }
-
-      const feishuRes = await fetch(
+    // POST /events - 创建饭局
+    if (path.includes('/events') && method === 'POST') {
+      const response = await fetch(
         `${FEISHU_BASE}/bitable/v1/apps/${app_token}/tables/${table_id}/records`,
         {
           method: 'POST',
@@ -116,23 +114,20 @@ exports.handler = async (request) => {
           })
         }
       );
-      const data = await feishuRes.json();
-      return JSON.stringify(data);
+
+      const data = await response.json();
+      resp.setHeader('Content-Type', 'application/json');
+      resp.send(JSON.stringify(data));
+      return;
     }
 
-    // PUT /events/:id
-    const match = path.match(/^\/events\/([^/]+)$/);
+    // PUT /events/:id - 更新饭局
+    const match = path.match(/\/events\/([^/?]+)/);
     if (match && method === 'PUT') {
-      let body = {};
-      if (event.body) {
-        const bodyStr = event.isBase64Encoded 
-          ? Buffer.from(event.body, 'base64').toString() 
-          : event.body;
-        body = JSON.parse(bodyStr);
-      }
+      const recordId = match[1];
 
-      const feishuRes = await fetch(
-        `${FEISHU_BASE}/bitable/v1/apps/${app_token}/tables/${table_id}/records/${match[1]}`,
+      const response = await fetch(
+        `${FEISHU_BASE}/bitable/v1/apps/${app_token}/tables/${table_id}/records/${recordId}`,
         {
           method: 'PUT',
           headers: {
@@ -142,13 +137,21 @@ exports.handler = async (request) => {
           body: JSON.stringify({ fields: body.fields })
         }
       );
-      const data = await feishuRes.json();
-      return JSON.stringify(data);
+
+      const data = await response.json();
+      resp.setHeader('Content-Type', 'application/json');
+      resp.send(JSON.stringify(data));
+      return;
     }
 
-    return JSON.stringify({ error: 'Not found', path });
+    resp.setStatusCode(404);
+    resp.setHeader('Content-Type', 'application/json');
+    resp.send(JSON.stringify({ error: 'Not found' }));
 
-  } catch (err) {
-    return JSON.stringify({ error: err.message, stack: err.stack });
+  } catch (error) {
+    logger.error('API Error:', error);
+    resp.setStatusCode(500);
+    resp.setHeader('Content-Type', 'application/json');
+    resp.send(JSON.stringify({ error: error.message }));
   }
 };

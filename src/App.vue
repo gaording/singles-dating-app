@@ -5,9 +5,8 @@ import { ref, computed, onMounted } from 'vue'
 // 部署后替换为你的函数计算 HTTP 触发器地址
 // 本地调试：s api local 会启动 http://localhost:9000
 
-const API_BASE = '/api' // 默认相对路径，需要配置 OSS 跨域或自定义域名
-// 部署后改成：
-// const API_BASE = 'https://你的函数计算域名/api'
+// 阿里云函数计算 API 地址
+const API_BASE = 'https://singlesting-api-vfhspouhaa.cn-hangzhou.fcapp.run'
 
 // 状态
 const events = ref([])

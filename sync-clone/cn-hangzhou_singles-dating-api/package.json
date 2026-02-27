@@ -1,0 +1,7 @@
+{
+  "name": "singles-dating-api",
+  "version": "1.0.0",
+  "description": "单身搭子 API - 阿里云函数计算",
+  "main": "index.js",
+  "dependencies": {}
+}

@@ -1,0 +1,26 @@
+edition: 3.0.0
+name: singles-dating-app
+access: default
+resources:
+  singles-dating-api:
+    component: fc3
+    props:
+      region: cn-hangzhou
+      description: 单身搭子饭局 API
+      disableOndemand: false
+      environmentVariables:
+        FEISHU_APP_ID: cli_a917c4e3ae389bb3
+        FEISHU_APP_SECRET: mswUEwqg0gWEXzDYRzko3eWXVDtjxrto
+      functionArn: acs:fc:cn-hangzhou:1163202321925437:functions/singles-dating-api
+      functionName: singles-dating-api
+      handler: index.handler
+      instanceIsolationMode: SHARE
+      internetAccess: true
+      memorySize: 256
+      resourceGroupId: rg-acfmwrhrv4nukpi
+      role: ''
+      runtime: nodejs20
+      sessionAffinity: NONE
+      timeout: 30
+      code: >-
+        /home/admin/.openclaw/workspace/singles-dating-app/sync-clone/cn-hangzhou_singles-dating-api
