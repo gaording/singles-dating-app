@@ -1,10 +1,10 @@
-// FC3 HTTP 函数 - 晚餐搭子匹配 API
+// FC3 HTTP 函数 - 晚餐搭子答题匹配 API
 
 const FEISHU_BASE = 'https://open.feishu.cn/open-apis';
 
 const CONFIG = {
-  app_token: 'MeFpb7f06aCCiMsaadNcReLUnvu',
-  table_id: 'tblfl9NLAf6iJtKw',
+  app_token: 'SOtGbDbx0aOOi6ssapFctVZhnLd',
+  table_id: 'tblK5cCBih3TYn3D',
   app_id: process.env.FEISHU_APP_ID,
   app_secret: process.env.FEISHU_APP_SECRET
 };
@@ -46,7 +46,6 @@ async function getTodayMatch(token, date) {
   );
   const data = await res.json();
 
-  // 找到今天的匹配记录
   const todayRecord = (data.data?.items || []).find(
     item => item.fields['日期'] === date
   );
@@ -55,108 +54,129 @@ async function getTodayMatch(token, date) {
     return { match: null };
   }
 
-  const participants = JSON.parse(todayRecord.fields['参与者'] || '[]');
-  const status = todayRecord.fields['状态'];
-  const matched = JSON.parse(todayRecord.fields['匹配结果'] || '[]');
-  const topic = todayRecord.fields['破冰话题'] || '';
-
   return {
     match: {
       id: todayRecord.record_id,
       date,
-      participants,
-      status,
-      matched,
-      topic
+      creator: JSON.parse(todayRecord.fields['发起人'] || 'null'),
+      questions: JSON.parse(todayRecord.fields['问题列表'] || '[]'),
+      matched: JSON.parse(todayRecord.fields['匹配结果'] || '[]'),
+      failedAttempts: JSON.parse(todayRecord.fields['失败记录'] || '[]'),
+      status: todayRecord.fields['状态']
     }
   };
 }
 
-// 创建或更新匹配记录
-async function upsertMatch(token, date, participant) {
+// 创建匹配（发起人设置题目）
+async function createMatch(token, date, creator, questions) {
   const { app_token, table_id } = CONFIG;
 
-  // 先查询是否有今天的记录
-  const existingMatch = await getTodayMatch(token, date);
+  const body = {
+    records: [{
+      fields: {
+        '日期': date,
+        '发起人': JSON.stringify(creator),
+        '问题列表': JSON.stringify(questions),
+        '匹配结果': '',
+        '失败记录': '',
+        '状态': '等待答题'
+      }
+    }]
+  };
+
+  const res = await fetch(
+    `${FEISHU_BASE}/bitable/v1/apps/${app_token}/tables/${table_id}/records`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    }
+  );
+  const data = await res.json();
   
-  if (!existingMatch.match) {
-    // 创建新记录
-    const res = await fetch(
-      `${FEISHU_BASE}/bitable/v1/apps/${app_token}/tables/${table_id}/records`,
+  if (data.code !== 0) {
+    return { error: data.msg, match: null };
+  }
+  
+  return {
+    match: {
+      id: data.data?.records?.[0]?.record_id,
+      date,
+      creator,
+      questions,
+      matched: [],
+      failedAttempts: [],
+      status: '等待答题'
+    }
+  };
+}
+
+// 参加匹配（答题）
+async function joinMatch(token, date, participant) {
+  const { app_token, table_id } = CONFIG;
+
+  const existing = await getTodayMatch(token, date);
+  if (!existing.match) {
+    return { error: '没有找到匹配', match: null };
+  }
+
+  const match = existing.match;
+  
+  // 检查性别是否匹配（异性）
+  if (participant.gender === match.creator.gender) {
+    return { error: '同性不能匹配', match };
+  }
+
+  // 检查是否已经匹配成功
+  if (match.matched.length >= 2) {
+    return { error: '已匹配成功', match };
+  }
+
+  // 如果答对了，匹配成功
+  if (participant.allCorrect) {
+    match.matched = [match.creator, participant];
+    
+    await fetch(
+      `${FEISHU_BASE}/bitable/v1/apps/${app_token}/tables/${table_id}/records/${match.id}`,
       {
-        method: 'POST',
+        method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          records: [{
-            fields: {
-              '日期': date,
-              '参与者': JSON.stringify([participant]),
-              '状态': 'waiting',
-              '破冰话题': participant.topics || '',
-              '匹配结果': '',
-              '创建时间': Date.now()
-            }
-          }]
+          fields: {
+            '匹配结果': JSON.stringify(match.matched),
+            '状态': '已匹配'
+          }
         })
       }
     );
-    const data = await res.json();
-    return {
-      match: {
-        id: data.data?.records?.[0]?.record_id,
-        date,
-        participants: [participant],
-        status: 'waiting',
-        matched: [],
-        topic: participant.topics || ''
+  } else {
+    // 答错了，记录失败
+    match.failedAttempts = [...(match.failedAttempts || []), participant];
+    
+    await fetch(
+      `${FEISHU_BASE}/bitable/v1/apps/${app_token}/tables/${table_id}/records/${match.id}`,
+      {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          fields: {
+            '失败记录': JSON.stringify(match.failedAttempts)
+          }
+        })
       }
-    };
+    );
   }
 
-  // 更新现有记录
-  const match = existingMatch.match;
-  const participants = [...match.participants, participant];
-  
-  let newStatus = match.status;
-  let matched = [];
-  
-  // 如果有两人，自动匹配
-  if (participants.length >= 2 && match.status === 'waiting') {
-    newStatus = 'matched';
-    matched = participants.slice(0, 2); // 取前两人
-  }
-
-  const res = await fetch(
-    `${FEISHU_BASE}/bitable/v1/apps/${app_token}/tables/${table_id}/records/${match.id}`,
-    {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        fields: {
-          '参与者': JSON.stringify(participants),
-          '状态': newStatus,
-          '匹配结果': JSON.stringify(matched),
-          '破冰话题': match.topic || participant.topics || ''
-        }
-      })
-    }
-  );
-
-  return {
-    match: {
-      ...match,
-      participants,
-      status: newStatus,
-      matched,
-      topic: match.topic || participant.topics || ''
-    }
-  };
+  return { match };
 }
 
 exports.handler = async (request) => {
@@ -175,7 +195,22 @@ exports.handler = async (request) => {
       return JSON.stringify(result);
     }
 
-    // POST /match/join
+    // POST /match/create - 发起匹配
+    if (path === '/match/create' && method === 'POST') {
+      let body = {};
+      if (event.body) {
+        const bodyStr = event.isBase64Encoded 
+          ? Buffer.from(event.body, 'base64').toString() 
+          : event.body;
+        body = JSON.parse(bodyStr);
+      }
+
+      const date = body.date || new Date().toISOString().split('T')[0];
+      const result = await createMatch(token, date, body.creator, body.questions);
+      return JSON.stringify(result);
+    }
+
+    // POST /match/join - 参加匹配
     if (path === '/match/join' && method === 'POST') {
       let body = {};
       if (event.body) {
@@ -186,14 +221,7 @@ exports.handler = async (request) => {
       }
 
       const date = body.date || new Date().toISOString().split('T')[0];
-      const participant = {
-        id: body.participant.id,
-        name: body.participant.name,
-        avatar: body.participant.avatar,
-        topics: body.participant.topics
-      };
-
-      const result = await upsertMatch(token, date, participant);
+      const result = await joinMatch(token, date, body.participant);
       return JSON.stringify(result);
     }
 
