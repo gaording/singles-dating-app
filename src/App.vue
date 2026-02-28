@@ -22,16 +22,16 @@ const createForm = ref({
   name: '',
   gender: '',
   avatar: '😊',
-  contact: '', // 联系方式（飞书/微信）
+  contact: '',
   questions: [
-    { question: '', options: ['', '', ''], answer: 0 },
-    { question: '', options: ['', '', ''], answer: 0 },
-    { question: '', options: ['', '', ''], answer: 0 }
+    { question: '', answer: true },  // true = 是, false = 否
+    { question: '', answer: true },
+    { question: '', answer: true }
   ]
 })
 
 // 答题人的答案
-const quizAnswers = ref([-1, -1, -1])
+const quizAnswers = ref([null, null, null])  // true = 是, false = 否
 
 // 检查是否已参与
 const checkJoined = () => {
@@ -114,14 +114,14 @@ const createMatch = async () => {
 
 // 开始答题
 const startQuiz = () => {
-  if (!myInfo.value.name || !quizContact.value) {
-    alert('请填写名字和联系方式')
+  if (!myInfo.value.name) {
+    alert('请填写名字')
     return
   }
   localStorage.setItem('myName', myInfo.value.name)
-  myInfo.value.contact = quizContact.value
+  myInfo.value.contact = quizContact.value || ''
   currentView.value = 'quiz'
-  quizAnswers.value = [-1, -1, -1]
+  quizAnswers.value = [null, null, null]
 }
 
 // 提交答案
@@ -272,7 +272,7 @@ onMounted(loadTodayMatch)
                 <input
                   v-model="quizContact"
                   type="text"
-                  placeholder="你的联系方式（飞书ID/微信）"
+                  placeholder="你的联系方式"
                   class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pink-300 mb-3"
                 />
                 <div class="flex gap-3 justify-center">
@@ -361,11 +361,11 @@ onMounted(loadTodayMatch)
 
           <!-- 联系方式 -->
           <div class="mb-4">
-            <label class="block text-sm text-gray-600 mb-2">联系方式（匹配成功后对方能看到）</label>
+            <label class="block text-sm text-gray-600 mb-2">联系方式</label>
             <input
               v-model="createForm.contact"
               type="text"
-              placeholder="飞书ID 或 微信号"
+              placeholder="匹配成功后对方能看到"
               class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pink-300"
             />
           </div>
@@ -391,36 +391,39 @@ onMounted(loadTodayMatch)
           <!-- 设置题目 -->
           <div class="mb-4">
             <label class="block text-sm font-medium text-gray-700 mb-2">
-              设置 3 道选择题（让对方答）
+              设置 3 道判断题（让对方答）
             </label>
-            <div class="space-y-4">
+            <div class="space-y-3">
               <div v-for="(q, i) in createForm.questions" :key="i" class="bg-gray-50 rounded-xl p-4">
                 <input
                   v-model="q.question"
                   type="text"
-                  :placeholder="`问题 ${i + 1}`"
-                  class="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pink-300 mb-2"
+                  :placeholder="`问题 ${i + 1}（例如：我喜欢吃辣）`"
+                  class="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pink-300 mb-3"
                 />
-                <div class="space-y-1">
-                  <div v-for="(opt, j) in q.options" :key="j" class="flex gap-2">
-                    <input
-                      v-model="q.options[j]"
-                      type="text"
-                      :placeholder="`选项 ${['A', 'B', 'C'][j]}`"
-                      class="flex-1 px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pink-300 text-sm"
-                    />
-                    <button
-                      @click="q.answer = j"
-                      :class="[
-                        'px-3 py-2 rounded-lg text-sm transition',
-                        q.answer === j
-                          ? 'bg-green-500 text-white'
-                          : 'bg-gray-200 text-gray-400'
-                      ]"
-                    >
-                      ✓
-                    </button>
-                  </div>
+                <div class="flex gap-2">
+                  <button
+                    @click="q.answer = true"
+                    :class="[
+                      'flex-1 py-2 rounded-lg text-sm font-medium transition',
+                      q.answer === true
+                        ? 'bg-green-500 text-white'
+                        : 'bg-white border border-gray-200 text-gray-500'
+                    ]"
+                  >
+                    ✓ 是
+                  </button>
+                  <button
+                    @click="q.answer = false"
+                    :class="[
+                      'flex-1 py-2 rounded-lg text-sm font-medium transition',
+                      q.answer === false
+                        ? 'bg-red-500 text-white'
+                        : 'bg-white border border-gray-200 text-gray-500'
+                    ]"
+                  >
+                    ✗ 否
+                  </button>
                 </div>
               </div>
             </div>
@@ -460,22 +463,31 @@ onMounted(loadTodayMatch)
             <p class="text-gray-500 text-sm">答对 3 题就能匹配成功</p>
           </div>
 
-          <div class="space-y-6">
+          <div class="space-y-4">
             <div v-for="(q, i) in todayMatch?.questions" :key="i" class="bg-gray-50 rounded-xl p-4">
               <p class="font-medium text-gray-800 mb-3">{{ i + 1 }}. {{ q.question }}</p>
-              <div class="space-y-2">
+              <div class="flex gap-3">
                 <button
-                  v-for="(opt, j) in q.options"
-                  :key="j"
-                  @click="quizAnswers[i] = j"
+                  @click="quizAnswers[i] = true"
                   :class="[
-                    'w-full py-3 px-4 rounded-xl text-left transition',
-                    quizAnswers[i] === j
-                      ? 'bg-pink-500 text-white'
-                      : 'bg-white border border-gray-200 hover:border-pink-300'
+                    'flex-1 py-3 px-4 rounded-xl font-medium transition',
+                    quizAnswers[i] === true
+                      ? 'bg-green-500 text-white'
+                      : 'bg-white border border-gray-200 hover:border-green-300'
                   ]"
                 >
-                  {{ ['A', 'B', 'C'][j] }}. {{ opt }}
+                  ✓ 是
+                </button>
+                <button
+                  @click="quizAnswers[i] = false"
+                  :class="[
+                    'flex-1 py-3 px-4 rounded-xl font-medium transition',
+                    quizAnswers[i] === false
+                      ? 'bg-red-500 text-white'
+                      : 'bg-white border border-gray-200 hover:border-red-300'
+                  ]"
+                >
+                  ✗ 否
                 </button>
               </div>
             </div>
@@ -483,10 +495,10 @@ onMounted(loadTodayMatch)
 
           <button
             @click="submitQuiz"
-            :disabled="quizAnswers.some(a => a === -1)"
+            :disabled="quizAnswers.some(a => a === null)"
             :class="[
               'w-full mt-6 py-4 rounded-xl font-medium transition text-lg',
-              quizAnswers.every(a => a !== -1)
+              quizAnswers.every(a => a !== null)
                 ? 'bg-pink-500 text-white hover:bg-pink-600'
                 : 'bg-gray-100 text-gray-400 cursor-not-allowed'
             ]"
