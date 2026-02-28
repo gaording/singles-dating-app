@@ -22,6 +22,7 @@ const createForm = ref({
   name: '',
   gender: '',
   avatar: '😊',
+  contact: '', // 联系方式（飞书/微信）
   questions: [
     { question: '', options: ['', '', ''], answer: 0 },
     { question: '', options: ['', '', ''], answer: 0 },
@@ -80,7 +81,8 @@ const createMatch = async () => {
     id: myId,
     name: createForm.value.name,
     gender: createForm.value.gender,
-    avatar: createForm.value.avatar
+    avatar: createForm.value.avatar,
+    contact: createForm.value.contact
   }
 
   try {
@@ -94,7 +96,8 @@ const createMatch = async () => {
           id: myId,
           name: createForm.value.name,
           gender: createForm.value.gender,
-          avatar: createForm.value.avatar
+          avatar: createForm.value.avatar,
+          contact: createForm.value.contact
         },
         questions: createForm.value.questions.filter(q => q.question.trim())
       })
@@ -111,6 +114,12 @@ const createMatch = async () => {
 
 // 开始答题
 const startQuiz = () => {
+  if (!myInfo.value.name || !quizContact.value) {
+    alert('请填写名字和联系方式')
+    return
+  }
+  localStorage.setItem('myName', myInfo.value.name)
+  myInfo.value.contact = quizContact.value
   currentView.value = 'quiz'
   quizAnswers.value = [-1, -1, -1]
 }
@@ -135,6 +144,7 @@ const submitQuiz = async () => {
           name: myInfo.value.name,
           gender: myInfo.value.gender,
           avatar: myInfo.value.avatar,
+          contact: myInfo.value.contact,
           answers: quizAnswers.value,
           allCorrect
         }
@@ -154,6 +164,9 @@ const fillInfo = (gender) => {
   myInfo.value.gender = gender
   localStorage.setItem('myGender', gender)
 }
+
+// 答题人也要填联系方式
+const quizContact = ref('')
 
 const genderEmoji = computed(() => {
   return myInfo.value.gender === 'male' ? '👦' : '👧'
@@ -253,10 +266,16 @@ onMounted(loadTodayMatch)
                   v-model="myInfo.name"
                   type="text"
                   placeholder="你的名字"
-                  class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pink-300"
+                  class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pink-300 mb-3"
                   @keyup.enter="localStorage.setItem('myName', myInfo.name)"
                 />
-                <div class="mt-3 flex gap-3 justify-center">
+                <input
+                  v-model="quizContact"
+                  type="text"
+                  placeholder="你的联系方式（飞书ID/微信）"
+                  class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pink-300 mb-3"
+                />
+                <div class="flex gap-3 justify-center">
                   <button
                     v-for="emoji in ['😊', '😎', '🤓', '😄', '🙂', '🥳']"
                     :key="emoji"
@@ -336,6 +355,17 @@ onMounted(loadTodayMatch)
               v-model="createForm.name"
               type="text"
               placeholder="大家怎么叫你？"
+              class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pink-300"
+            />
+          </div>
+
+          <!-- 联系方式 -->
+          <div class="mb-4">
+            <label class="block text-sm text-gray-600 mb-2">联系方式（匹配成功后对方能看到）</label>
+            <input
+              v-model="createForm.contact"
+              type="text"
+              placeholder="飞书ID 或 微信号"
               class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pink-300"
             />
           </div>
@@ -486,6 +516,21 @@ onMounted(loadTodayMatch)
               <div class="text-4xl mb-1">{{ todayMatch.matched[1]?.avatar }}</div>
               <div class="text-sm text-gray-600">{{ todayMatch.matched[1]?.name }}</div>
               <div class="text-xs text-gray-400">{{ todayMatch.matched[1]?.gender === 'male' ? '👦 男生' : '👧 女生' }}</div>
+            </div>
+          </div>
+
+          <!-- 联系方式 -->
+          <div class="bg-pink-50 rounded-xl p-4 mb-4">
+            <div class="text-xs text-gray-500 mb-2 text-center">📞 联系方式</div>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="bg-white rounded-lg p-3 text-center">
+                <div class="text-sm font-medium text-gray-800">{{ todayMatch.matched[0]?.name }}</div>
+                <div class="text-xs text-gray-500 mt-1">{{ todayMatch.matched[0]?.contact || '未填写' }}</div>
+              </div>
+              <div class="bg-white rounded-lg p-3 text-center">
+                <div class="text-sm font-medium text-gray-800">{{ todayMatch.matched[1]?.name }}</div>
+                <div class="text-xs text-gray-500 mt-1">{{ todayMatch.matched[1]?.contact || '未填写' }}</div>
+              </div>
             </div>
           </div>
 
